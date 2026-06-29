@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blind Test Spotify</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page-center">
+    <div class="hero">
+      <div class="vinyl" id="vinyl">
+        <div class="vinyl-center"></div>
+      </div>
+      <h1 class="title">Blind Test<span class="title-accent">Spotify</span></h1>
+      <p class="subtitle">Devinez à qui appartient chaque morceau !</p>
+    </div>
+
+    <div class="card" id="card-main">
+      <div class="tabs">
+        <button class="tab active" id="tab-create" onclick="switchTab('create')">Créer une salle</button>
+        <button class="tab" id="tab-join" onclick="switchTab('join')">Rejoindre</button>
+      </div>
+
+      <!-- CREATE -->
+      <div class="tab-content" id="content-create">
+        <label class="field-label">Ton pseudo</label>
+        <input class="field" id="create-name" type="text" placeholder="ex: Alex" maxlength="20" />
+
+        <label class="field-label" style="margin-top:1rem">Manches</label>
+        <div class="slider-row">
+          <input type="range" id="rounds-slider" min="5" max="20" value="10" step="1" />
+          <span class="slider-val" id="rounds-val">10</span>
+        </div>
+
+        <label class="field-label">Temps par manche</label>
+        <div class="slider-row">
+          <input type="range" id="timer-slider" min="15" max="60" value="30" step="5" />
+          <span class="slider-val" id="timer-val">30s</span>
+        </div>
+
+        <button class="btn-primary" id="create-btn" onclick="createRoom()">Créer la salle</button>
+      </div>
+
+      <!-- JOIN -->
+      <div class="tab-content hidden" id="content-join">
+        <label class="field-label">Ton pseudo</label>
+        <input class="field" id="join-name" type="text" placeholder="ex: Jordan" maxlength="20" />
+        <label class="field-label" style="margin-top:1rem">Code de la salle</label>
+        <input class="field code-field" id="join-code" type="text" placeholder="XXXXX" maxlength="5" />
+        <button class="btn-primary" id="join-btn" onclick="joinRoom()">Rejoindre</button>
+      </div>
+
+      <div class="error-msg" id="error-msg"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <script>
+    // ── Config ────────────────────────────────────────────────────────────────
+    // ⚠️ Remplace par l'URL de ton backend Railway une fois déployé
+    const BACKEND = window.location.hostname === 'localhost'
+      ? 'http://localhost:4000'
+      : 'https://TON-APP.up.railway.app'; // <-- REMPLACER ICI après déploiement
+
+    const socket = io(BACKEND);
+
+    // ── Sliders ───────────────────────────────────────────────────────────────
+    document.getElementById('rounds-slider').oninput = function() {
+      document.getElementById('rounds-val').textContent = this.value;
+    };
+    document.getElementById('timer-slider').oninput = function() {
+      document.getElementById('timer-val').textContent = this.value + 's';
+    };
+
+    // ── Tabs ──────────────────────────────────────────────────────────────────
+    function switchTab(t) {
+      document.getElementById('content-create').classList.toggle('hidden', t !== 'create');
+      document.getElementById('content-join').classList.toggle('hidden', t !== 'join');
+      document.getElementById('tab-create').classList.toggle('active', t === 'create');
+      document.getElementById('tab-join').classList.toggle('active', t === 'join');
+      clearError();
+    }
+
+    function clearError() { document.getElementById('error-msg').textContent = ''; }
+    function showError(msg) { document.getElementById('error-msg').textContent = msg; }
+
+    // ── Create ────────────────────────────────────────────────────────────────
+    function createRoom() {
+      const name = document.getElementById('create-name').value.trim();
+      if (!name) return showError('Entre ton pseudo !');
+      const rounds = parseInt(document.getElementById('rounds-slider').value);
+      const timer = parseInt(document.getElementById('timer-slider').value);
+      socket.emit('create_room', { name, settings: { rounds, timer } });
+    }
+
+    socket.on('room_created', ({ code, playerId }) => {
+      sessionStorage.setItem('playerId', playerId);
+      sessionStorage.setItem('roomCode', code);
+      sessionStorage.setItem('playerName', document.getElementById('create-name').value.trim());
+      window.location.href = `game.html?room=${code}`;
+    });
+
+    // ── Join ──────────────────────────────────────────────────────────────────
+    function joinRoom() {
+      const name = document.getElementById('join-name').value.trim();
+      const code = document.getElementById('join-code').value.trim().toUpperCase();
+      if (!name) return showError('Entre ton pseudo !');
+      if (code.length !== 5) return showError('Le code fait 5 caractères.');
+      socket.emit('join_room', { code, name });
+    }
+
+    socket.on('room_joined', ({ room, playerId }) => {
+      sessionStorage.setItem('playerId', playerId);
+      sessionStorage.setItem('roomCode', room.code);
+      sessionStorage.setItem('playerName', document.getElementById('join-name').value.trim());
+      window.location.href = `game.html?room=${room.code}`;
+    });
+
+    socket.on('error', ({ msg }) => showError(msg));
+
+    // ── Vinyl spin ────────────────────────────────────────────────────────────
+    const vinyl = document.getElementById('vinyl');
+    let angle = 0;
+    setInterval(() => {
+      angle = (angle + 0.5) % 360;
+      vinyl.style.transform = `rotate(${angle}deg)`;
+    }, 16);
+
+    // ── Code input auto-uppercase ─────────────────────────────────────────────
+    document.getElementById('join-code').addEventListener('input', function() {
+      this.value = this.value.toUpperCase();
+    });
+  </script>
+</body>
+</html>
