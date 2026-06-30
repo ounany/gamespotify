@@ -49,7 +49,7 @@ app.get('/auth/login', (req, res) => {
     response_type: 'code',
     client_id: process.env.SPOTIFY_CLIENT_ID,
     scope: scopes,
-    redirect_uri: `${req.protocol}://${req.get('host')}/auth/callback`,
+    redirect_uri: `https://${req.get('host')}/auth/callback`,
     state: req.query.state || '',
   });
   res.redirect(`https://accounts.spotify.com/authorize?${params}`);
@@ -57,7 +57,7 @@ app.get('/auth/login', (req, res) => {
 
 app.get('/auth/callback', async (req, res) => {
   const { code, state } = req.query;
-  const redirectUri = `${req.protocol}://${req.get('host')}/auth/callback`;
+  const redirectUri = `https://${req.get('host')}/auth/callback`;
   try {
     const creds = Buffer.from(
       `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
